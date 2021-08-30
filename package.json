@@ -72,5 +72,16 @@
     "utils-merge": "^1.0.1",
     "vary": "^1.1.2"
   },
-  "description": ""
+  "description": "tdd",
+  "bin": {
+    "api": "server_excute.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EverythingAvailable/tdd.git"
+  },
+  "bugs": {
+    "url": "https://github.com/EverythingAvailable/tdd/issues"
+  },
+  "homepage": "https://github.com/EverythingAvailable/tdd#readme"
 }
