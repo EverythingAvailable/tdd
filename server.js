@@ -54,7 +54,7 @@ const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const app = express();
 const player = require('./api/player/router.js');
-const record = require('./record');
+// const record = require('./record');
 
 if (process.env.NODE_ENV != 'test') {
     app.use(morgan('dev')); // 로그를 찍어준당

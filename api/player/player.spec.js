@@ -7,10 +7,10 @@ const models = require('../../models');
 
 
  describe('GET : /players는', () => {
+    before( () => models.sequelize.sync({}));
      describe('성공 시', () => {
-         before( () => models.sequelize.sync({force:true}));
-         it.only('player list를 반환한다.', (done) => {
-             return request(app)
+         it('player list를 반환한다.', (done) => {
+             request(app)
                 .get('/players')
                 .end((err, res) => {
                     if(err) throw err;                                
@@ -20,10 +20,10 @@ const models = require('../../models');
          });
          it('최대 limit갯수만큼 응답한다.', (done) => {
              request(app)
-                .get('/players?limit=2')
+                .get('/players?limit=3')
                 .end((err, res) => {
                     if (err) throw err;
-                    res.body.should.have.lengthOf(2)
+                    res.body.should.have.lengthOf(3)
                     done();
                 });
          });
@@ -44,12 +44,12 @@ const models = require('../../models');
 
  describe('GET : /players:mvp 는', () => {
      describe('성공 시', () => {
-         it('mvp가 4인 객체를 반환한다.', (done) => {
+         it('mvp가 2인 객체를 반환한다.', (done) => {
              request(app)
-                .get('/players/4')
+                .get('/players/2')
                 .end((err, res) => {
                     if(err) throw err;
-                    res.body[0].should.have.property('final_mvp', 4);
+                    res.body.should.have.property(`who's the best?`, 2);
                     done();
                 });
          });
@@ -59,10 +59,11 @@ const models = require('../../models');
 
 
 describe('DELETE : /players/:mvp는', () => {
+    before( () => models.sequelize.sync({}));
     describe('성공 시', () => {
         it('상태코드 204를 반환한다.', (done) => {
             request(app)
-               .delete('/players/4')
+               .delete('/players/6')
                .expect(204)
                .end((err, res) => {
                    done();
@@ -79,12 +80,19 @@ describe('DELETE : /players/:mvp는', () => {
 });
 
 describe('POST : /players 는', () => {
+    before( () => models.sequelize.sync({}));
     describe('성공 시', () => {
         let body;
         before(done => {
             request(app)
                .post('/players')
-               .send({name: 'ball'})
+               .send({
+                   club: 'pistons',
+                   name: 'cunningham',
+                   age: 19,
+                   salary: 10,
+                   final_mvp: 0
+                })
                .expect(201)
                .end((err, res) => {
                    if (err) throw err;
@@ -93,71 +101,115 @@ describe('POST : /players 는', () => {
                });
         });
         it('입력한 이름을 반환한다.', () => {
-            body.should.have.property('name', 'ball');
+            body.should.have.property('name', 'cunningham');
         });
         it('생성된 유저객체를 반환한다.', () => {
-            body.should.have.property('club', 'bulls');
+            body.should.be.instanceOf(Object); // 객체를 반환한다.
         });
     });
     describe('실패 시', () => {
-        it('파라매터 누락 시 400을 반환한다.', done => {
+        it('이름 누락 시 400을 반환한다.', done => {
             request(app)
                .post('/players')
-               .send({})
+               .send({
+                   club: 'cleveland',
+                   age: 33,
+                   salary: 24,
+                   final_mvp: 0
+               })
                .expect(400)
                .end(done);
         });
         it('name이 중복일 경우 409를 반환한다.', done => {
             request(app)
                .post('/players')
-               .send({name: 'tatum'})
+               .send({
+                   club: 'celtics',
+                   name: 'durant',
+                   age: 33,
+                   salary: 33,
+                   final_mvp: 0
+                })
                .expect(409)
                .end(done);
         });
     });
 });
 
-describe('PUT : /players 은', () => {
+describe.only('PUT : /players 은', () => {
+    before( () => models.sequelize.sync({})); // sequelize와 동기화(return 으로 비동기 처리)
     describe('성공 시', () => {
-        const name = 'zrue';
-        it('변경된 name을 응답한다.', done => {
+        data1 = {
+            club: 'jazz',
+            name: 'ingles',
+            age: 29,
+            salary: 20,
+            final_mvp:0,  
+        }
+        it('변경된 정보를 응답한다.', done => {
             request(app)
-               .put('/players?club=bucks')
-               .send({name})
+               .put('/players/1')
+               .send(data1)
                .end((err, res) => {
                    if (err) throw err;                   
-                   res.body.should.have.property('name', 'zrue');
+                   res.body.should.have.property('name', 'ingles');
                    done();
                });
         });
     });
     describe('실패 시', () => {
-        const name = 'howard';
+        data2 = {
+            club: 3,
+            name: 'Russ',
+            age: 32,
+            salary: 42,
+            final_mvp: 0        
+        }
         it('문자열이 아닌 club일 경우 400을 응답', done => {
             request(app)
-               .put('/players?club=4')
-               .send(name)
+               .put('/players/1')
+               .send(data2)
                .expect(400)
                .end(done);
         });
+        data3 = {
+            club: 'lakers',
+            age: 23,
+            salary: 30,
+            final_mvp: 0        
+        }
         it('name이 없을 경우 400 응답', done => {
             request(app)
-               .put('/players?club=nets')
-               .send()
+               .put('/players/1')
+               .send(data3)
                .expect(400)
                .end(done);
         });
-        it('없는 클럽일 경우 404 응답', done => {
+        data4 = {
+            club: 'GSW',
+            name: 'curry',
+            age: 33,
+            salary: 25,
+            final_mvp: 0        
+        }
+        it('조건에 맞는 선수가 없을 경우 404 응답', done => {
             request(app)
-               .put('/players?club=w')
-               .send({ name: 'howard' })
+               .put('/players/100')
+               .send(data4)
                .expect(404)
                .end(done);
         });
+        data5 = {
+            club: 'lakers',
+            name: 'doncic',
+            age: 31,
+            salary: 25,
+            final_mvp: 0        
+        }
         it('이름이 중복일 경우 409 응답', done => {
             request(app)
-               .put('/players?club=knicks')
-               .send({ name: 'tatum'})
+               .put('/players/2')
+               .send(data4)
                .expect(409)
                .end(done);
         });

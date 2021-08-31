@@ -1,23 +1,6 @@
 // const sqliteDB = require('../../models');
 const models = require('../../models');
-
-// dummy data
-// players = [
-//     {club: 'lakers', name: 'lebron', age: 36, salary: 38, final_mvp: 4},
-//     {club: 'celtics', name: 'tatum', age: 23, salary: 28, final_mvp: 0},
-//     {club: 'nets', name: 'durant', age: 32, salary: 41, final_mvp: 2},
-//     {club: 'hawks', name: 'trae', age: 22, salary: 8, final_mvp: 0},
-//     {club: 'mavs', name: 'doncic', age: 22, salary: 10, final_mvp: 0},
-//     {club: 'clippers', name: 'kawai', age: 30, salary: 36, final_mvp: 2},
-//     {club: 'raptors', name: 'siakam', age: 27, salary: 31, final_mvp: 0},
-//     {club: 'heat', name: 'butler', age: 31, salary: 36, final_mvp: 0},
-//     {club: 'jazz', name: 'mitchel', age: 24, salary: 28, final_mvp: 0},
-//     {club: 'bucks', name: 'giannis', age: 26, salary: 38, final_mvp: 1},
-//     {club: 'knicks', name: 'walker', age: 33, salary: 32, final_mvp: 0},
-// ];
-
-
-
+const sqliteHandler = require('../../handler');
 
 
 
@@ -26,14 +9,26 @@ exports.getPlayers =  async(req, res) => {
     else limit = parseInt(req.query.limit, 10); 
     if(Number.isNaN(limit)) return res.status(400).end();
     res.status(200);
+    const attributes = ['club', 'name', ['age', 'how old is he?']]; // field값 제한
+    const result = await sqliteHandler.getSqlites(models.Player, attributes, limit) 
+    // 프라퍼티에 따라 유동적으로 매서드를 활용하면 된다.
+    res.json(result).end();
     // await models.Player.findAll({}).then(players => {
     //         res.json(players);
     //     });
 }; 
 
-exports.getMvpPlayer =  (req, res) => {
-    const mvp = parseInt(req.params.mvp, 10);
-    if (Number.isNaN(mvp)) return res.status(400).end();
+exports.getMvpPlayer =  async (req, res) => {
+    const final_mvp = parseInt(req.params.final_mvp, 10);
+    console.log(final_mvp);
+    if (Number.isNaN(final_mvp)) return res.status(400).end();
+    const queryParams = {
+        final_mvp
+    }
+    const attributes = ['club', 'name', ['final_mvp', `who's the best?`]];
+    // const player = players.filter( player => player.final_mvp === mvp);
+    const result = await sqliteHandler.getSqlite(models.Player, queryParams, attributes);
+    res.json(result).end();
     // models.Player.findAll({})
     //         .then(players => {
     //             res.json(players);
@@ -41,40 +36,70 @@ exports.getMvpPlayer =  (req, res) => {
     };
 
 
-exports.deleteMvpPlayer =   (req, res) => {
+exports.deleteMvpPlayer =  async (req, res) => {
     const mvp = parseInt(req.params.mvp, 10);
-    players =   players.filter( player => player.final_mvp !== mvp);
     if (Number.isNaN(mvp)) res.status(400).end();
-    res.status(204).end();
+    // players =   players.filter( player => player.final_mvp !== mvp);
+    queryParams = {
+        mvp 
+    }
+    const result = await sqliteHandler.deleteSqlite(models.Player, queryParams);
+    res.status(204).json(result).end();
 };
 
 
-exports.createPlayer =   (req, res) => {
+exports.createPlayer =   async (req, res) => {
     // console.log(req);
-    const name = req.body.name;
-    const new_player = {club: 'bulls', age: 24, salary: 21, final_mvp: 0};
-    const AlreadyExistPlayer =   players.filter( player => player.name == name).length;
-    if (!name) return res.status(400).end();
-    if (AlreadyExistPlayer) return res.status(409).end(); 
-    new_player.name = name;
-    players.push(new_player);
-    const data = { club:'bulls', name, age: 23, salary: 24, final_mvp: 0 };
+    // const name = req.body.name;
+    // const new_player = {club: 'bulls', age: 24, salary: 21, final_mvp: 0};
+    const { club, name, age, salary, final_mvp } = req.body;
+    if( !name ) {
+        console.log('파라미터가 부족합니다');
+        res.status(400).end();
+    }
+    const data = {
+        club,
+        name,
+        age: Number(age),
+        salary: Number(salary),
+        final_mvp: Number(final_mvp)
+    };
+    const queryParams = {
+        name
+    }
+    const NameConflictPlayer = await sqliteHandler.getSqlite(models.Player, queryParams);
+    if (NameConflictPlayer) return res.status(409).end(); 
+    const result = await sqliteHandler.createSqlite(models.Player, data);
     res.status(201);
-    res.json(new_player).end();
-    res.end();
+    res.json(result).end();
 };
 
-exports. editPlayer =   (req, res) => {
-    const name = req.body.name;
-    if (typeof name != 'string' || !name) return res.status(400).end();
-    const AEplayer =   players.filter( player => player.name == name);
-    if ( AEplayer.length != 0) return res.status(409).end();
-    const club = req.query.club
-    const playerList =  players.filter( player => player.club == club );
-    if (playerList.length === 0) return res.status(404).end();
-    const player = playerList[0];
-    player.name = name;
-    res.json(player).end();
+exports. editPlayer =   async (req, res) => {
+    const { id } = req.params;
+    const findQueryParams = {
+        id
+    }
+    const { club, name, age, salary, final_mvp } = req.body;
+    const nameQueryParams = {
+        name
+    }
+    const data = {
+        club,
+        name,
+        age,
+        salary,
+        final_mvp
+    }
+    const tableName = models.Player;
+    if (typeof club != 'string' || !name) return res.status(400).end(); // 이름이 없거나 클럽명이 숫자인 경우
+    const AlreadyExistPlayer = await sqliteHandler.getSqlite(tableName, findQueryParams); // key값에 해당하는 데이터 존재여부 파악
+    if ( !AlreadyExistPlayer ) return res.status(404).end(); // 데이터 미존재
+    const CheckNameConflict = await sqliteHandler.getSqlite(tableName, nameQueryParams); // key값에 해당하는 데이터 존재여부 파악
+    if ( CheckNameConflict ) return res.status(409).end(); // 이름 이미 존재하는 경우
+    
+    const result = await sqliteHandler.updateSqlite(tableName, data, findQueryParams);
+    console.log(result);
+    res.json(result).end();
 };
 
 // 데이터베이스 테이블을 ORM으로 추상화한 것을 모델이라 하며 이 모델을 통해 각종 매서드들에 접근하는 것이다.
